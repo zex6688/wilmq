@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>赛博奶龙大乱斗·67 终极版 🐉⚡</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+  body {
+    background: #0a0a1a;
+    background-image: 
+      radial-gradient(circle at 20% 50%, rgba(120, 0, 255, 0.15) 0%, transparent 50%),
+      radial-gradient(circle at 80% 50%, rgba(0, 255, 255, 0.15) 0%, transparent 50%);
+    color: #fff;
+    font-family: 'Courier New', monospace;
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  /* 赛博朋克扫描线 */
+  body::after {
+    content: "";
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: repeating-linear-gradient(0deg, rgba(0,0,0,0.15) 0px, rgba(0,0,0,0.15) 1px, transparent 1px, transparent 3px);
+    pointer-events: none;
+    z-index: 100;
+  }
+
+  .scoreboard {
+    display: flex;
+    gap: 30px;
+    font-size: 22px;
+    font-weight: bold;
+    margin-bottom: 15px;
+    z-index: 10;
+    text-shadow: 0 0 10px currentColor;
+  }
+  .p1 { color: #00f3ff; }
+  .p2 { color: #ff0055; }
+  .timer { color: #fcee0a; font-size: 28px; }
+  
+  #game-area {
+    position: relative;
+    width: 92vw;
+    height: 72vh;
+    background: rgba(0, 0, 0, 0.6);
+    border: 2px solid #00f3ff;
+    box-shadow: 0 0 30px rgba(0, 243, 255, 0.5), inset 0 0 50px rgba(0, 243, 255, 0.1);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  
+  /* 奶龙本体 */
+  #nai-long {
+    position: absolute;
+    width: 110px;
+    height: 110px;
+    background: #ffcc00;
+    border-radius: 50% 50% 40% 40%;
+    box-shadow: 0 0 40px #ffcc00, 0 0 80px rgba(255, 204, 0, 0.5);
+    display: none;
+    transform: translate(-50%, -50%);
+    transition: left 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), top 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), transform 0.1s;
+    background-image: 
+      radial-gradient(circle at 30% 40%, #000 7px, transparent 7px),
+      radial-gradient(circle at 70% 40%, #000 7px, transparent 7px),
+      radial-gradient(circle at 50% 68%, #ff6b6b 10px, transparent 10px);
+    cursor: crosshair;
+    z-index: 5;
+  }
+  #nai-long:active { transform: translate(-50%, -50%) scale(0.85); }
+
+  /* 道具 */
+  .item {
+    position: absolute;
+    width: 60px; height: 60px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 30px;
+    cursor: pointer;
+    transform: translate(-50%, -50%);
+    animation: pulse 0.8s infinite alternate;
+    z-index: 4;
+  }
+  .item.double { background: #ff00ff; box-shadow: 0 0 30px #ff00ff; }
+  .item.slow { background: #00ffaa; box-shadow: 0 0 30px #00ffaa; }
+  @keyframes pulse { from { transform: translate(-50%, -50%) scale(1); } to { transform: translate(-50%, -50%) scale(1.2); } }
+
+  /* 飘字 */
+  .pop-text {
+    position: absolute;
+    font-size: 24px;
+    font-weight: bold;
+    pointer-events: none;
+    animation: floatUp 1s ease-out forwards;
+    z-index: 10;
+    text-shadow: 0 0 10px currentColor;
+    white-space: nowrap;
+  }
+  @keyframes floatUp {
+    0% { opacity: 1; transform: translate(-50%, -50%) scale(0.5); }
+    50% { opacity: 1; transform: translate(-50%, -100%) scale(1.3); }
+    100% { opacity: 0; transform: translate(-50%, -200%) scale(1); }
+  }
+
+  /* 嘲讽气泡 */
+  .taunt {
+    position: absolute;
+    background: #fff;
+    color: #000;
+    padding: 8px 15px;
+    border-radius: 20px;
+    font-size: 16px;
+    font-weight: bold;
+    white-space: nowrap;
+    pointer-events: none;
+    animation: floatUp 1.5s ease-out forwards;
+    z-index: 11;
+    box-shadow: 0 0 20px #fff;
+  }
+  .taunt::after {
+    content: "";
+    position: absolute;
+    bottom: -8px; left: 50%;
+    transform: translateX(-50%);
+    border: 8px solid transparent;
+    border-top-color: #fff;
+  }
+
+  /* 开始/结束界面 */
+  .start-screen {
+    text-align: center;
+    background: rgba(0, 0, 0, 0.85);
+    padding: 50px 60px;
+    border: 2px solid #fcee0a;
+    box-shadow: 0 0 50px rgba(252, 238, 10, 0.4);
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 20;
+    border-radius: 10px;
+  }
+  .start-screen h1 { 
+    margin-bottom: 15px; font-size: 38px; 
+    color: #fcee0a; 
+    text-shadow: 0 0 20px #fcee0a;
+    animation: glitch 2s infinite;
+  }
+  @keyframes glitch {
+    0%, 100% { transform: translate(0); }
+    20% { transform: translate(-2px, 2px); }
+    40% { transform: translate(2px, -2px); }
+    60% { transform: translate(-1px, 1px); }
+  }
+  .start-screen p { margin-bottom: 25px; color: #00f3ff; font-size: 16px; line-height: 1.8; }
+  .btn {
+    background: linear-gradient(90deg, #ff00ff, #00f3ff);
+    color: #000;
+    border: none;
+    padding: 15px 50px;
+    font-size: 22px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: bold;
+    font-family: inherit;
+    box-shadow: 0 0 20px rgba(255, 0, 255, 0.6);
+    transition: 0.2s;
+    letter-spacing: 2px;
+  }
+  .btn:hover { transform: scale(1.05); box-shadow: 0 0 40px rgba(255, 0, 255, 0.9); }
+  
+  .player-hint {
+    position: absolute;
+    bottom: 15px;
+    width: 100%;
+    display: flex;
+    justify-content: space-around;
+    font-size: 14px;
+    color: rgba(255,255,255,0.4);
+    letter-spacing: 2px;
+  }
+
+  /* 连击特效 */
+  #combo-display {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 80px;
+    font-weight: bold;
+    color: #fcee0a;
+    text-shadow: 0 0 30px #fcee0a, 0 0 60px #ff00ff;
+    pointer-events: none;
+    opacity: 0;
+    z-index: 15;
+  }
+  #combo-display.show { animation: comboAnim 0.6s ease-out forwards; }
+  @keyframes comboAnim {
+    0% { opacity: 0; transform: translate(-50%, -50%) scale(0.3) rotate(-10deg); }
+    50% { opacity: 1; transform: translate(-50%, -50%) scale(1.2) rotate(5deg); }
+    100% { opacity: 0; transform: translate(-50%, -50%) scale(1) rotate(0); }
+  }
+
+  /* ===== 67 暴击特效 ===== */
+  #crit-67 {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%) scale(0);
+    font-size: 150px;
+    font-weight: 900;
+    color: #fcee0a;
+    text-shadow: 0 0 30px #fcee0a, 0 0 60px #ff00ff, 0 0 100px #00f3ff;
+    pointer-events: none;
+    opacity: 0;
+    z-index: 50;
+    font-family: 'Courier New', monospace;
+    letter-spacing: 10px;
+  }
+  #crit-67.show {
+    animation: critAnim 1.2s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  }
+  @keyframes critAnim {
+    0% { opacity: 0; transform: translate(-50%, -50%) scale(0) rotate(-20deg); }
+    40% { opacity: 1; transform: translate(-50%, -50%) scale(1.3) rotate(5deg); }
+    70% { opacity: 1; transform: translate(-50%, -50%) scale(1) rotate(0deg); }
+    100% { opacity: 0; transform: translate(-50%, -50%) scale(1.5) rotate(0deg); }
+  }
+</style>
+</head>
+<body>
+
+<div class="scoreboard">
+  <div class="p1">🔵 P1: <span id="score1">0</span> [A键]</div>
+  <div class="timer">⏱ <span id="timer">60</span>s</div>
+  <div class="p2">🔴 P2: <span id="score2">0</span> [L键]</div>
+</div>
+
+<div id="game-area">
+  <div id="nai-long"></div>
+  <div id="combo-display"></div>
+  <div id="crit-67">67!</div>
+  <div class="start-screen" id="startScreen">
+    <h1>🐉 赛博奶龙大乱斗</h1>
+    <p>玩家1 按 A 键 | 玩家2 按 L 键<br>抢到奶龙有概率爆梗加分<br>粉色=双倍分 | 绿色=减速力场<br><span style="color:#fcee0a;">5% 概率触发 67 暴击！</span></p>
+    <button class="btn" onclick="startGame()">开始乱斗</button>
+  </div>
+  <div class="player-hint">
+    <span>P1: A 键</span>
+    <span>P2: L 键</span>
+  </div>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+// ========== 🎧 赛博音效引擎 ==========
+const AudioContext = window.AudioContext || window.webkitAudioContext;
+let audioCtx;
+function initAudio() { if (!audioCtx) audioCtx = new AudioContext(); }
+
+// 抢到奶龙音效
+function playCatchSound(combo) {
+  if (!audioCtx) return;
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.connect(gain); gain.connect(audioCtx.destination);
+  osc.type = 'square';
+  const baseFreq = 600 + Math.min(combo * 100, 800);
+  osc.frequency.setValueAtTime(baseFreq, audioCtx.currentTime);
+  osc.frequency.exponentialRampToValueAtTime(baseFreq * 2, audioCtx.currentTime + 0.08);
+  gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.12);
+  osc.start(); osc.stop(audioCtx.currentTime + 0.12);
+}
+
+// 开始游戏音效
+function playStartSound() {
+  if (!audioCtx) return;
+  [261, 329, 392, 523, 659, 784].forEach((f, i) => {
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.connect(gain); gain.connect(audioCtx.destination);
+    osc.type = 'sawtooth';
+    osc.frequency.value = f;
+    gain.gain.setValueAtTime(0.1, audioCtx.currentTime + i * 0.08);
+    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + i * 0.08 + 0.1);
+    osc.start(audioCtx.currentTime + i * 0.08);
+    osc.stop(audioCtx.currentTime + i * 0.08 + 0.12);
+  });
+}
+
+// 游戏结束音效
+function playGameOverSound() {
+  if (!audioCtx) return;
+  [523, 440, 349, 261].forEach((f, i) => {
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.connect(gain); gain.connect(audioCtx.destination);
+    osc.type = 'triangle';
+    osc.frequency.value = f;
+    gain.gain.setValueAtTime(0.2, audioCtx.currentTime + i * 0.2);
+    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + i * 0.2 + 0.15);
+    osc.start(audioCtx.currentTime + i * 0.2);
+    osc.stop(audioCtx.currentTime + i * 0.2 + 0.25);
+  });
+}
+
+// 67 专属音效
+function play67Sound() {
+  if (!audioCtx) return;
+  const notes = [659.25, 783.99, 1046.50];
+  notes.forEach((freq, i) => {
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.connect(gain); gain.connect(audioCtx.destination);
+    osc.type = 'square';
+    osc.frequency.value = freq;
+    gain.gain.setValueAtTime(0.2, audioCtx.currentTime + i * 0.1);
+    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + i * 0.1 + 0.15);
+    osc.start(audioCtx.currentTime + i * 0.1);
+    osc.stop(audioCtx.currentTime + i * 0.1 + 0.2);
+  });
+}
+
+// ========== 🎮 游戏逻辑 ==========
+const socket = io();
+const naiLong = document.getElementById('nai-long');
+const score1El = document.getElementById('score1');
+const score2El = document.getElementById('score2');
+const timerEl = document.getElementById('timer');
+const startScreen = document.getElementById('startScreen');
+const gameArea = document.getElementById('game-area');
+const comboDisplay = document.getElementById('combo-display');
+
+let lastScore = { p1: 0, p2: 0 };
+let lastIsPlaying = false;
+let combo = { p1: 0, p2: 0 };
+let lastCatchTime = { p1: 0, p2: 0 };
+let doubleActive = { p1: false, p2: false };
+
+// 梗池
+const memes = [
+  { text: "只因你太美 🐔", color: "#ff6b6b" },
+  { text: "泰裤辣！🔥", color: "#ff9f43" },
+  { text: "遥遥领先 📱", color: "#00f3ff" },
+  { text: "YYDS！✨", color: "#fcee0a" },
+  { text: "绝绝子 😍", color: "#ff00ff" },
+  { text: "退退退！🛡️", color: "#00ffaa" },
+  { text: "尊嘟假嘟？🤔", color: "#74b9ff" },
+  { text: "city不city啊 🏙️", color: "#fd79a8" },
+  { text: "我勒个豆 🫘", color: "#e17055" },
+  { text: "哈基米 哈基米 🐱", color: "#a29bfe" },
+];
+
+// 嘲讽池
+const taunts = [
+  "哎哟你干嘛~",
+  "你抓不到我略略略",
+  "菜就多练！",
+  "急了急了~",
+  "哇哦！",
+  "小七，来玩呀！",
+  "吃我一记奶龙拳！",
+  "你是故意找茬是不是？",
+];
+
+// 飘字
+function spawnPopText(x, y, text, color) {
+  const el = document.createElement('div');
+  el.className = 'pop-text';
+  el.textContent = text;
+  el.style.color = color;
+  el.style.left = x + '%';
+  el.style.top = y + '%';
+  gameArea.appendChild(el);
+  setTimeout(() => el.remove(), 1000);
+}
+
+// 嘲讽
+function spawnTaunt(x, y) {
+  const el = document.createElement('div');
+  el.className = 'taunt';
+  el.textContent = taunts[Math.floor(Math.random() * taunts.length)];
+  el.style.left = x + '%';
+  el.style.top = (y - 15) + '%';
+  gameArea.appendChild(el);
+  setTimeout(() => el.remove(), 1500);
+}
+
+// 连击
+function showCombo(player, count) {
+  comboDisplay.textContent = `${player === 'p1' ? '🔵' : '🔴'} ${count} COMBO!`;
+  comboDisplay.style.color = player === 'p1' ? '#00f3ff' : '#ff0055';
+  comboDisplay.classList.remove('show');
+  void comboDisplay.offsetWidth;
+  comboDisplay.classList.add('show');
+}
+
+// 67 特效
+function show67Crit() {
+  const el = document.getElementById('crit-67');
+  el.classList.remove('show');
+  void el.offsetWidth;
+  el.classList.add('show');
+}
+
+// 道具
+function spawnItem(type) {
+  const item = document.createElement('div');
+  item.className = `item ${type}`;
+  item.textContent = type === 'double' ? '×2' : '🐢';
+  item.style.left = (Math.random() * 80 + 10) + '%';
+  item.style.top = (Math.random() * 80 + 10) + '%';
+  item.dataset.type = type;
+  gameArea.appendChild(item);
+  setTimeout(() => item.remove(), 5000);
+}
+
+// 状态更新
+socket.on('gameState', (state) => {
+  score1El.textContent = state.score.p1;
+  score2El.textContent = state.score.p2;
+  timerEl.textContent = state.timeLeft;
+  
+  const now = Date.now();
+  ['p1', 'p2'].forEach(p => {
+    if (state.score[p] > lastScore[p]) {
+      if (now - lastCatchTime[p] < 3000) combo[p]++;
+      else combo[p] = 1;
+      lastCatchTime[p] = now;
+      
+      playCatchSound(combo[p]);
+      
+      // 67 暴击
+      if (Math.random() < 0.05) {
+        state.score[p] += 67;
+        play67Sound();
+        show67Crit();
+        spawnPopText(state.naiLong.x, state.naiLong.y, "🔥 67 暴击！+67", "#fcee0a");
+        score1El.textContent = state.score.p1;
+        score2El.textContent = state.score.p2;
+      }
+      
+      if (combo[p] >= 2) showCombo(p, combo[p]);
+      
+      if (Math.random() < 0.4) {
+        const meme = memes[Math.floor(Math.random() * memes.length)];
+        spawnPopText(state.naiLong.x, state.naiLong.y, meme.text, meme.color);
+      }
+      
+      if (Math.random() < 0.15) spawnTaunt(state.naiLong.x, state.naiLong.y);
+      
+    } else if (state.score[p] < lastScore[p]) {
+      combo[p] = 0;
+    }
+  });
+  lastScore = { ...state.score };
+  
+  if (state.isPlaying && !lastIsPlaying) {
+    playStartSound();
+    setInterval(() => {
+      if (state.isPlaying) spawnItem(Math.random() < 0.5 ? 'double' : 'slow');
+    }, 8000);
+  }
+  lastIsPlaying = state.isPlaying;
+  
+  if (state.isPlaying) {
+    startScreen.style.display = 'none';
+    naiLong.style.display = 'block';
+    naiLong.style.left = state.naiLong.x + '%';
+    naiLong.style.top = state.naiLong.y + '%';
+  } else {
+    naiLong.style.display = 'none';
+  }
+});
+
+// 游戏结束
+socket.on('gameOver', (score) => {
+  playGameOverSound();
+  startScreen.style.display = 'block';
+  let winnerText =</ '';
+  if (score.p1 > score.p2) winnerText = 'script🔵 玩家1 获胜！';
+  else if (score.p1 < score>
+
+.p2) winnerText = '🔴 玩家2 获胜！';
+  else winnerText = '🤝 平局！';
+  
+  startScreen.innerHTML = `
+    <h1>⏰ 游戏结束</h1>
+    <p style="font-size: 22px; margin: 20px 0;">
+      🔵 P1: <span style="color:#00f3ff; font-size: 30px;">${score.p1}</span> 分<br>
+      🔴 P2: <span style="color:#ff0055; font-size: 30px;">${score.p2}</span> 分
+    </p>
+    <p style="font-size: 26px; color: #fcee0a; margin-bottom: 25px;">${winnerText}</p>
+    <button class="btn" onclick="startGame()">再战一局</button>
+  `;
+});
+
+// 键盘监听
+document.addEventListener('keydown', (e) => {
+  if (e.repeat) return;
+  const key = e.key.toLowerCase();
+  if (key === 'a') socket.emit('catchNaiLong', 'p1');
+  if (key === 'l') socket.emit('catchNaiLong', 'p2');
+});
+
+function startGame() {
+  initAudio();
+  combo = { p1: 0, p2: 0 };
+  socket.emit('startGame');
+}
+</body>
+</html>
